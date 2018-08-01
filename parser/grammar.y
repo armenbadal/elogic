@@ -1,6 +1,14 @@
 
 %{
+package parser
+
+import "container/list"
 %}
+
+%union {
+    name string
+    list *list.List
+}
 
 %token xScheme
 %token xEnd
@@ -8,7 +16,9 @@
 %token xTrue
 %token xArrow
 %token xNewLine
-%token xIdent
+%token <name> xIdent
+
+%type <list> IdentList
 
 %%
 Module
@@ -21,12 +31,22 @@ SchemeList
     ;
 
 Scheme
-    : xScheme xIdent IdentList xArrow IdentList NewLines OperationList xEnd
+    : Header NewLines OperationList xEnd
+    ;
+
+Header
+    : xScheme xIdent IdentList xArrow IdentList
     ;
 
 IdentList
     : IdentList xIdent
+    {
+        $$ = nil
+    }
     | xIdent
+    {
+        $$ = nil
+    }
     ;
 
 OperationList
@@ -40,6 +60,6 @@ Operation
 
 NewLines
     : NewLines xNewLine
-    | xNewLines
+    | xNewLine
     ;
 
