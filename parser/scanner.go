@@ -1,7 +1,6 @@
 
 package parser
 
-
 import (
 	"bufio"
 	"unicode"
