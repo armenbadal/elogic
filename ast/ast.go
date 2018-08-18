@@ -17,6 +17,7 @@ func NewModule() *Module {
 	return &Module{Items: list.New()}
 }
 
+
 type Scheme struct {
 	Name string
 	Inputs, Outputs []string
@@ -27,6 +28,7 @@ func NewScheme(nm string, ins, outs []string) *Scheme {
 	return &Scheme{Name: nm, Inputs: ins, Outputs: outs, Body: list.New()}
 }
 
+
 type Instruction struct {
 	Name string
 	Inputs, Outputs []string
@@ -35,6 +37,7 @@ type Instruction struct {
 func NewInstruction(nm string, ins, outs []string) *Instruction {
 	return &Instruction{Name: nm, Inputs: ins, Outputs: outs}
 }
+
 
 //
 func (mp *Module) String() string {
@@ -70,6 +73,8 @@ func (ip *Instruction) String() string {
 	outs := strings.Join(ip.Outputs, " ")
 	return fmt.Sprintf("  %s %s -> %s\n", ip.Name, ins, outs)
 }
+
+
 
 //
 func forEach(l *list.List, f func(interface{})) {

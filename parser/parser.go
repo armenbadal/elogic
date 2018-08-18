@@ -5,11 +5,8 @@ package parser
 
 import (
 	"bufio"
-	"os"
-)
-
-import (
 	"github.com/armenbadal/elogic/ast"
+	"os"
 )
 
 // կառուցվող միակ մոդուլը

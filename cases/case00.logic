@@ -1,0 +1,19 @@
+
+;
+; Ein
+;
+SCHEME nand a b -> x
+  AND a b -> t
+  NOT t -> x
+END
+
+;
+; Zwei
+;
+SCHEME s0 a b c d -> x y z
+  AND1 a b -> t
+  AND2 a b -> t
+  AND3 a b -> t
+  AND4 a b -> t
+END
+

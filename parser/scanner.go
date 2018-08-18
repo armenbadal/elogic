@@ -38,10 +38,17 @@ func (l *einLex) Lex(lval *einSymType) int {
 		ch = l.next()
 	}
 
+	// մեկնաբանությունների տող
+	if ch == ';' {
+		for ch != '\n' {
+			ch = l.next()
+		}
+	}
+
 	if ch == xEof {
 		return xEof
 	}
-
+	
 	if ch == '\n' {
 		return xNewLine
 	}
@@ -62,17 +69,6 @@ func (l *einLex) Lex(lval *einSymType) int {
 
 		lval.name = s
 		return xIdent
-	}
-
-	if ch == '\'' {
-		ch = l.next()
-		s := ""
-		for ch != '\'' {
-			s = s + string(ch)
-			ch = l.next()
-		}
-		lval.name = s
-		return xText
 	}
 
 	if ch == '-' {

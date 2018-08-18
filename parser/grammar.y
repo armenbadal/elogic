@@ -2,64 +2,105 @@
 %{
 package parser
 
-import "container/list"
+import (
+    "container/list"
+	"github.com/armenbadal/elogic/ast"
+)
+
 %}
 
 %union {
-    name string
-    list *list.List
+  name string
+  list *list.List
 }
+
 
 %token xScheme
 %token xEnd
-%token xFalse
-%token xTrue
 %token xArrow
 %token xNewLine
+%token xUnknown
+
 %token <name> xIdent
 
 %type <list> IdentList
 
 %%
 Module
-    : SchemeList
+    : OptNewLines SchemeList
+    {
+		return 0
+    }
     ;
 
 SchemeList
-    : SchemeList Scheme NewLines
-    | /* empty */
+    : SchemeList Scheme
+    | Scheme
     ;
 
 Scheme
-    : Header NewLines OperationList xEnd
+    : Header NewLines InstrList xEnd NewLines
+    {
+		module.Items.PushBack(current)
+		current = nil
+    }
     ;
 
 Header
     : xScheme xIdent IdentList xArrow IdentList
+    {
+		current = ast.NewScheme($2, toSlice($3), toSlice($5))
+    }
+    ;
+
+InstrList
+    : InstrList Instruction
+    | Instruction
+    ;
+
+Instruction
+    : xIdent IdentList xArrow IdentList NewLines
+    {
+		ins := ast.NewInstruction($1, toSlice($2), toSlice($4))
+        current.Body.PushBack(ins)
+    }
     ;
 
 IdentList
     : IdentList xIdent
     {
-        $$ = nil
+		$$ = $1
+		$$.PushBack($2)
     }
     | xIdent
     {
-        $$ = nil
+		$$ = list.New()
+		$$.PushBack($1)
     }
-    ;
-
-OperationList
-    : OperationList Operation
-    | Operation
-    ;
-
-Operation
-    : xIdent IdentList xArrow IdentList NewLines
     ;
 
 NewLines
     : NewLines xNewLine
     | xNewLine
     ;
+
+OptNewLines
+    : NewLines
+    | /* empty */
+	;
+
+%%
+
+func toSlice(sil *list.List) []string {
+    res := make([]string, sil.Len())
+	i := 0
+	ei := sil.Front()
+	for ei != nil {
+		res[i] = ei.Value.(string)
+		i++
+		ei = ei.Next()
+	}
+	return res
+}
+
 
