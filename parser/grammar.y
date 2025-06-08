@@ -3,15 +3,14 @@
 package parser
 
 import (
-    "container/list"
-	"github.com/armenbadal/elogic/ast"
+	"elogic/ast"
 )
 
 %}
 
 %union {
   name string
-  list *list.List
+  list []string
 }
 
 
@@ -27,80 +26,63 @@ import (
 
 %%
 Module
-    : OptNewLines SchemeList
-    {
-		return 0
-    }
-    ;
+  : OptNewLines SchemeList
+  {
+    return 0
+  }
+  ;
 
 SchemeList
-    : SchemeList Scheme
-    | Scheme
-    ;
+  : SchemeList Scheme
+  | Scheme
+  ;
 
 Scheme
-    : Header NewLines InstrList xEnd NewLines
-    {
-		module.Items.PushBack(current)
-		current = nil
-    }
-    ;
+  : Header NewLines InstrList xEnd NewLines
+  {
+    module.Items = append(module.Items, current)
+    current = nil
+  }
+  ;
 
 Header
-    : xScheme xIdent IdentList xArrow IdentList
-    {
-		current = ast.NewScheme($2, toSlice($3), toSlice($5))
-    }
-    ;
+  : xScheme xIdent IdentList xArrow IdentList
+  {
+    current = ast.NewScheme($2, $3, $5)
+  }
+  ;
 
 InstrList
-    : InstrList Instruction
-    | Instruction
-    ;
+  : InstrList Instruction
+  | Instruction
+  ;
 
 Instruction
-    : xIdent IdentList xArrow IdentList NewLines
-    {
-		ins := ast.NewInstruction($1, toSlice($2), toSlice($4))
-        current.Body.PushBack(ins)
-    }
-    ;
+  : xIdent IdentList xArrow IdentList NewLines
+  {
+    ins := ast.NewInstruction($1, $2, $4)
+    current.Body = append(current.Body, ins)
+  }
+  ;
 
 IdentList
-    : IdentList xIdent
-    {
-		$$ = $1
-		$$.PushBack($2)
-    }
-    | xIdent
-    {
-		$$ = list.New()
-		$$.PushBack($1)
-    }
-    ;
+  : IdentList xIdent
+  {
+    $$ = append($1, $2)
+  }
+  | xIdent
+  {
+    $$ = make([]string, 0, 1)
+    $$ = append($$, $1)
+  }
+  ;
 
 NewLines
-    : NewLines xNewLine
-    | xNewLine
-    ;
+  : NewLines xNewLine
+  | xNewLine
+  ;
 
 OptNewLines
-    : NewLines
-    | /* empty */
-	;
-
-%%
-
-func toSlice(sil *list.List) []string {
-    res := make([]string, sil.Len())
-	i := 0
-	ei := sil.Front()
-	for ei != nil {
-		res[i] = ei.Value.(string)
-		i++
-		ei = ei.Next()
-	}
-	return res
-}
-
-
+  : NewLines
+  | /* empty */
+  ;

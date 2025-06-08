@@ -1,6 +1,4 @@
-
 package ast
-
 
 import (
 	"container/list"
@@ -8,29 +6,30 @@ import (
 	"strings"
 )
 
-
 type Module struct {
-	Items *list.List
+	Items []*Scheme
 }
 
 func NewModule() *Module {
-	return &Module{Items: list.New()}
+	return &Module{Items: make([]*Scheme, 0, 8)}
 }
 
-
 type Scheme struct {
-	Name string
+	Name            string
 	Inputs, Outputs []string
-	Body *list.List
+	Body            []*Instruction
 }
 
 func NewScheme(nm string, ins, outs []string) *Scheme {
-	return &Scheme{Name: nm, Inputs: ins, Outputs: outs, Body: list.New()}
+	return &Scheme{
+		Name:    nm,
+		Inputs:  ins,
+		Outputs: outs,
+		Body:    make([]*Instruction, 0, 8)}
 }
 
-
 type Instruction struct {
-	Name string
+	Name            string
 	Inputs, Outputs []string
 }
 
@@ -38,14 +37,12 @@ func NewInstruction(nm string, ins, outs []string) *Instruction {
 	return &Instruction{Name: nm, Inputs: ins, Outputs: outs}
 }
 
-
 //
 func (mp *Module) String() string {
 	var br strings.Builder
-	var ser = func( s interface{} ) { 
-		br.WriteString(s.(*Scheme).String())
+	for _, elem := range mp.Items {
+		br.WriteString(elem.String())
 	}
-	forEach(mp.Items, ser)
 	return br.String()
 }
 
@@ -57,10 +54,9 @@ func (sp *Scheme) String() string {
 	outs := strings.Join(sp.Outputs, " ")
 	br.WriteString(fmt.Sprintf("SCHEME %s %s -> %s\n", sp.Name, ins, outs))
 
-	ser := func(s interface{}) { 
-		br.WriteString(s.(*Instruction).String())
+	for _, elem := range sp.Body {
+		br.WriteString(elem.String())
 	}
-	forEach(sp.Body, ser)
 
 	br.WriteString("END\n\n")
 
@@ -74,13 +70,11 @@ func (ip *Instruction) String() string {
 	return fmt.Sprintf("  %s %s -> %s\n", ip.Name, ins, outs)
 }
 
-
-
 //
 func forEach(l *list.List, f func(interface{})) {
 	for ei := l.Front(); ei != nil; ei = ei.Next() {
 		f(ei.Value)
-	}	
+	}
 }
 
 //
