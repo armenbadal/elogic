@@ -95,21 +95,21 @@ pub struct Scheme {
 
 impl Display for Scheme {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "scheme {}", self.name);
+        write!(f, "scheme {}", self.name)?;
         for pin in &self.pins {
             if pin.role == Role::Input {
-                write!(f, " {}", pin.name.clone());
+                write!(f, " {}", pin.name.clone())?;
             }
         }
-        write!(f, " ->");
+        write!(f, " ->")?;
         for pin in &self.pins {
             if pin.role == Role::Output {
-                write!(f, " {}", pin.name.clone());
+                write!(f, " {}", pin.name.clone())?;
             }
         }
-        write!(f, "\n");
+        write!(f, "\n")?;
         for instr in &self.body {
-            write!(f, "  {}\n", instr);
+            write!(f, "  {}\n", instr)?;
         }
         write!(f, "end\n")
     }
@@ -122,24 +122,19 @@ impl Scheme {
     }
 
     fn flatten_internal(&self,  library: &Vec<Scheme>, ng: &mut NameGenerator) -> Self {
-        // let wrapper = Instruction {
-        //     scheme_name: self.name.clone(),
-        //     pin_bindings: self.pins
-        //         .iter()
-        //         .filter(|pin| pin.role != Role::Local)
-        //         .map(|pin| pin.name.clone())
-        //         .collect()
-        // };
-
-        let mut r: Vec<Instruction> = vec![];
-        for instr in &self.body {
-            r.append(&mut instr.expand(library, ng))
-        }
+        let wrapper = Instruction {
+            scheme_name: self.name.clone(),
+            pin_bindings: self.pins
+                .iter()
+                .filter(|pin| pin.role != Role::Local)
+                .map(|pin| pin.name.clone())
+                .collect()
+        };
 
         Scheme {
             name: self.name.clone(),
             pins: self.pins.clone(),
-            body: r
+            body: wrapper.expand(library, ng)
         }
     }
 }
@@ -221,6 +216,10 @@ mod test {
                 Pin { name: "a".into(), role: Role::Input },
                 Pin { name: "b".into(), role: Role::Input },
                 Pin { name: "x".into(), role: Role::Output },
+                Pin { name: "e0".into(), role: Role::Local },
+                Pin { name: "e1".into(), role: Role::Local },
+                Pin { name: "e2".into(), role: Role::Local },
+                Pin { name: "e3".into(), role: Role::Local },
             ],
             body: vec![
                 Instruction {
@@ -246,7 +245,8 @@ mod test {
             ]
         };
         let schemas = vec![xor_scheme, nand_scheme, and_scheme, or_scheme, not_scheme];
-        let flattened = &schemas[0].flatten(&schemas);
+
+        let flattened = schemas[0].flatten(&schemas);
         println!("->\n{}", flattened)
     }
 }
