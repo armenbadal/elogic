@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Pin {
     name: String,
     role: Role,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Role {
     Input,
     Output,
@@ -31,24 +31,28 @@ impl Display for Instruction {
 }
 
 impl Instruction {
-    pub fn expand(&self, library: &Vec<Scheme>) {
+    fn expand(&self, library: &Vec<Scheme>, ng: &mut NameGenerator) -> Vec<Instruction> {
         if self.scheme_name == "nand" {
-            println!("  {}", self);
-            return
+            return vec![self.clone()]
         }
 
-        let scheme = library.iter().find(|&s| s.name == self.scheme_name).unwrap();
+        let scheme = match library.iter().find(|&s| s.name == self.scheme_name) {
+            Some(scheme) => scheme,
+            None => return vec![],
+        };
 
         let mut pin_map: HashMap<String, String> = HashMap::new();
         for i in 0..scheme.pins.len() {
-            if scheme.pins[i].role == Role::Local {
-                pin_map.insert(scheme.pins[i].name.clone(), scheme.pins[i].name.clone()); // TODO: rename
+            let pin = &scheme.pins[i];
+            let map_to = if pin.role == Role::Local {
+                ng.get_next_name()
             } else {
-                pin_map.insert(scheme.pins[i].name.clone(), self.pin_bindings[i].clone());
-            }
+                self.pin_bindings[i].clone()
+            };
+            pin_map.insert(pin.name.clone(), map_to);
         }
 
-        let mut modified: Vec<Instruction> = vec![];
+        let mut result: Vec<Instruction> = vec![];
         for instr in &scheme.body {
             let mut bindings: Vec<String> = vec![];
             for p in &instr.pin_bindings {
@@ -56,26 +60,86 @@ impl Instruction {
                 bindings.push(name.clone());
             }
 
-            modified.push(Instruction {
+            let modified = Instruction {
                 scheme_name: instr.scheme_name.clone(),
                 pin_bindings: bindings
-            });
+            };
+            result.append(&mut modified.expand(&library, ng));
         }
-        modified.iter().for_each(|instr| {instr.expand(library);});
+        result
     }
 }
 
-#[derive(Debug)]
+struct NameGenerator {
+    prefix: String,
+    counter: i32,
+}
+
+impl NameGenerator {
+    fn new(prefix: String) -> Self {
+        NameGenerator {  prefix, counter: -1 }
+    }
+
+    fn get_next_name(&mut self) -> String {
+        self.counter += 1;
+        format!("{}.{}", self.prefix, self.counter)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Scheme {
     name: String,
     pins: Vec<Pin>,
     body: Vec<Instruction>,
 }
 
-impl Scheme {
-    fn flatten(&self,  library: &Vec<Scheme>) {
+impl Display for Scheme {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "scheme {}", self.name);
+        for pin in &self.pins {
+            if pin.role == Role::Input {
+                write!(f, " {}", pin.name.clone());
+            }
+        }
+        write!(f, " ->");
+        for pin in &self.pins {
+            if pin.role == Role::Output {
+                write!(f, " {}", pin.name.clone());
+            }
+        }
+        write!(f, "\n");
         for instr in &self.body {
-            instr.expand(library)
+            write!(f, "  {}\n", instr);
+        }
+        write!(f, "end\n")
+    }
+}
+
+impl Scheme {
+    pub fn flatten(&self, library: &Vec<Scheme>) -> Self {
+        let mut ng = NameGenerator::new("_t".to_string());
+        self.flatten_internal(library, &mut ng)
+    }
+
+    fn flatten_internal(&self,  library: &Vec<Scheme>, ng: &mut NameGenerator) -> Self {
+        // let wrapper = Instruction {
+        //     scheme_name: self.name.clone(),
+        //     pin_bindings: self.pins
+        //         .iter()
+        //         .filter(|pin| pin.role != Role::Local)
+        //         .map(|pin| pin.name.clone())
+        //         .collect()
+        // };
+
+        let mut r: Vec<Instruction> = vec![];
+        for instr in &self.body {
+            r.append(&mut instr.expand(library, ng))
+        }
+
+        Scheme {
+            name: self.name.clone(),
+            pins: self.pins.clone(),
+            body: r
         }
     }
 }
@@ -151,8 +215,6 @@ mod test {
                 }
             ]
         };
-        let schemas = vec![nand_scheme, and_scheme, or_scheme, not_scheme];
-
         let xor_scheme = Scheme {
             name: "xor".into(),
             pins: vec![
@@ -183,6 +245,8 @@ mod test {
                 },
             ]
         };
-        xor_scheme.flatten(&schemas);
+        let schemas = vec![xor_scheme, nand_scheme, and_scheme, or_scheme, not_scheme];
+        let flattened = &schemas[0].flatten(&schemas);
+        println!("->\n{}", flattened)
     }
 }
