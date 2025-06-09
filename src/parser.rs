@@ -11,7 +11,8 @@ enum Token {
     One,
     Arrow,
     Ident(String),
-    Eof
+    Eof,
+    Unknown(char),
 }
 
 struct Scanner<'a> {
@@ -27,8 +28,22 @@ impl<'a> Scanner<'a> {
         self.skip_whitespaces();
 
         match self.input.peek() {
-            Some(c) if c.is_alphabetic() => Some(self.keyword_or_identifier()),
-            Some(c) if c == &'-' => None,
+            Some(c) if c.is_alphabetic() => {
+                Some(self.keyword_or_identifier())
+            },
+            Some('-') => {
+                self.input.next();
+                if self.input.peek().copied() == Some('>') {
+                    self.input.next();
+                    Some(Token::Arrow)
+                } else {
+                    Some(Token::Unknown('?'))
+                }
+            },
+            Some('0') | Some('1') => {
+                let v = self.input.next().unwrap();
+                Some(if v == '1' { Token::True } else { Token::False })
+            }
             _ => None,
         }
     }
@@ -64,7 +79,8 @@ mod test {
     fn test_scanner() {
         let example0 = "\n\nmodule xor a b -> x\nend\n";
         let mut scanner = Scanner::new(example0.chars());
-        let tok = scanner.next_token();
-        println!("=> {:?}", tok)
+        while let Some(tok) = scanner.next_token() {
+            println!("=> {:?}", tok)
+        }
     }
 }
