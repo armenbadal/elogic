@@ -31,7 +31,7 @@ impl Display for Instruction {
 }
 
 impl Instruction {
-    fn expand(&self, library: &Vec<Scheme>, ng: &mut NameGenerator) -> Vec<Instruction> {
+    fn expand(&self, library: &Vec<Schematic>, ng: &mut NameGenerator) -> Vec<Instruction> {
         if self.scheme_name == "nand" {
             return vec![self.clone()]
         }
@@ -87,13 +87,13 @@ impl NameGenerator {
 }
 
 #[derive(Debug, Clone)]
-pub struct Scheme {
+pub struct Schematic {
     name: String,
     pins: Vec<Pin>,
     body: Vec<Instruction>,
 }
 
-impl Display for Scheme {
+impl Display for Schematic {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "scheme {}", self.name)?;
         for pin in &self.pins {
@@ -115,13 +115,13 @@ impl Display for Scheme {
     }
 }
 
-impl Scheme {
-    pub fn flatten(&self, library: &Vec<Scheme>) -> Self {
+impl Schematic {
+    pub fn flatten(&self, library: &Vec<Schematic>) -> Self {
         let mut ng = NameGenerator::new("_t".to_string());
         self.flatten_internal(library, &mut ng)
     }
 
-    fn flatten_internal(&self,  library: &Vec<Scheme>, ng: &mut NameGenerator) -> Self {
+    fn flatten_internal(&self,  library: &Vec<Schematic>, ng: &mut NameGenerator) -> Self {
         let wrapper = Instruction {
             scheme_name: self.name.clone(),
             pin_bindings: self.pins
@@ -131,7 +131,7 @@ impl Scheme {
                 .collect()
         };
 
-        Scheme {
+        Schematic {
             name: self.name.clone(),
             pins: self.pins.clone(),
             body: wrapper.expand(library, ng)
@@ -139,13 +139,18 @@ impl Scheme {
     }
 }
 
+pub struct Design {
+    schematics: Vec<Schematic>
+}
+
+
 mod test {
-    use crate::scheme::{Instruction, Pin, Role, Scheme};
+    use crate::scheme::{Instruction, Pin, Role, Schematic};
 
     #[test]
     fn test_simple_scheme() {
         // basis is NAND
-        let nand_scheme = Scheme {
+        let nand_scheme = Schematic {
             name: "nand".into(),
             pins: vec![
                 Pin { name: "a".into(), role: Role::Input },
@@ -154,7 +159,7 @@ mod test {
             ],
             body: vec![]
         };
-        let and_scheme = Scheme {
+        let and_scheme = Schematic {
             name: "and".into(),
             pins: vec![
                 Pin { name: "a".into(), role: Role::Input },
@@ -173,7 +178,7 @@ mod test {
                 },
             ]
         };
-        let or_scheme = Scheme {
+        let or_scheme = Schematic {
             name: "or".into(),
             pins: vec![
                 Pin { name: "a".into(), role: Role::Input },
@@ -197,7 +202,7 @@ mod test {
                 },
             ]
         };
-        let not_scheme = Scheme {
+        let not_scheme = Schematic {
             name: "not".into(),
             pins: vec![
                 Pin { name: "a".into(), role: Role::Input },
@@ -210,7 +215,7 @@ mod test {
                 }
             ]
         };
-        let xor_scheme = Scheme {
+        let xor_scheme = Schematic {
             name: "xor".into(),
             pins: vec![
                 Pin { name: "a".into(), role: Role::Input },

@@ -1,14 +1,12 @@
 use std::iter::Peekable;
 use std::str::Chars;
 
-#[derive(Debug)]
+use crate::scheme::{Design, Instruction, Schematic};
+
+#[derive(Debug, PartialEq)]
 enum Token {
-    Module,
+    Define,
     End,
-    True,
-    False,
-    Zero,
-    One,
     Arrow,
     Ident(String),
     Eof,
@@ -42,9 +40,10 @@ impl<'a> Scanner<'a> {
             },
             Some('0') | Some('1') => {
                 let v = self.input.next().unwrap();
-                Some(if v == '1' { Token::True } else { Token::False })
+                Some(Token::Ident(v.to_string()))
             }
-            _ => None,
+            Some(c) => Some(Token::Unknown(*c)),
+            _ => Some(Token::Eof)
         }
     }
 
@@ -63,14 +62,62 @@ impl<'a> Scanner<'a> {
         }
 
         match lexeme.as_str() {
-            "module" => Token::Module,
+            "module" => Token::Define,
             "end" => Token::End,
-            "true" => Token::True,
-            "false" => Token::False,
             _ => Token::Ident(lexeme)
         }
     }
 }
+
+impl<'a> Iterator for Scanner<'a> {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        todo!()
+    }
+}
+
+
+pub struct Parser<'a> {
+    scanner: Peekable<Scanner<'a>>
+}
+
+impl<'a> Parser<'a> {
+    pub fn new() {}
+
+    pub fn parse(&self) -> Result<Design,String> {
+        todo!()
+    }
+
+    fn parse_schematics(&mut self) -> Result<Schematic,String> {
+        todo!()
+    }
+
+    fn parse_identifier_list(&mut self) -> Result<Vec<String>,String> {
+        todo!()
+    }
+
+    fn parse_identifier(&mut self) -> Result<String,String> {
+        todo!()
+    }
+
+    fn parse_instruction_list(&mut self) -> Result<Vec<Instruction>,String> {
+        todo!()
+    }
+
+    fn parse_instruction(&mut self) -> Result<Instruction,String> {
+        todo!()
+    }
+
+    fn expect(&mut self, expected: Token) -> Result<(),String> {
+        match self.scanner.peek() {
+            Some(t) if *t == expected => Ok(()),
+            Some(t) => Err("".to_string()),
+            None => Err("".to_string()),
+        }
+    }
+}
+
 
 mod test {
     use crate::parser::Scanner;
