@@ -16,13 +16,13 @@ pub enum Role {
 
 #[derive(Debug, Clone)]
 pub struct Instruction {
-    scheme_name: String,
+    schematic_name: String,
     pin_bindings: Vec<String>,
 }
 
 impl Display for Instruction {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut result = String::from(&self.scheme_name);
+        let mut result = String::from(&self.schematic_name);
         for p in &self.pin_bindings {
             result.push_str(&format!(" {}", p));
         }
@@ -31,12 +31,16 @@ impl Display for Instruction {
 }
 
 impl Instruction {
+    pub fn new(schematic_name: String, inputs: Vec<String>, outputs: Vec<String>) -> Self {
+        Instruction { schematic_name: schematic_name, pin_bindings: vec![] }
+    }
+
     fn expand(&self, library: &Vec<Schematic>, ng: &mut NameGenerator) -> Vec<Instruction> {
-        if self.scheme_name == "nand" {
+        if self.schematic_name == "nand" {
             return vec![self.clone()]
         }
 
-        let scheme = match library.iter().find(|&s| s.name == self.scheme_name) {
+        let scheme = match library.iter().find(|&s| s.name == self.schematic_name) {
             Some(scheme) => scheme,
             None => return vec![],
         };
@@ -61,7 +65,7 @@ impl Instruction {
             }
 
             let modified = Instruction {
-                scheme_name: instr.scheme_name.clone(),
+                schematic_name: instr.schematic_name.clone(),
                 pin_bindings: bindings
             };
             result.append(&mut modified.expand(&library, ng));
@@ -116,6 +120,9 @@ impl Display for Schematic {
 }
 
 impl Schematic {
+    pub fn new(name: String, inputs: Vec<String>, outputs: Vec<String>, body: Vec<Instruction>) -> Self {
+        Self { name: name, pins: vec![], body: body }
+    }
     pub fn flatten(&self, library: &Vec<Schematic>) -> Self {
         let mut ng = NameGenerator::new("_t".to_string());
         self.flatten_internal(library, &mut ng)
@@ -123,7 +130,7 @@ impl Schematic {
 
     fn flatten_internal(&self,  library: &Vec<Schematic>, ng: &mut NameGenerator) -> Self {
         let wrapper = Instruction {
-            scheme_name: self.name.clone(),
+            schematic_name: self.name.clone(),
             pin_bindings: self.pins
                 .iter()
                 .filter(|pin| pin.role != Role::Local)
@@ -139,10 +146,16 @@ impl Schematic {
     }
 }
 
+#[derive(Debug)]
 pub struct Design {
     schematics: Vec<Schematic>
 }
 
+impl Design {
+    pub fn new(schematics: Vec<Schematic>) -> Self {
+        Self { schematics}
+    }
+}
 
 mod test {
     use crate::scheme::{Instruction, Pin, Role, Schematic};
@@ -169,11 +182,11 @@ mod test {
             ],
             body: vec![
                 Instruction {
-                    scheme_name: "nand".into(),
+                    schematic_name: "nand".into(),
                     pin_bindings: vec!["a".into(), "b".into(), "t".into()],
                 },
                 Instruction {
-                    scheme_name: "nand".into(),
+                    schematic_name: "nand".into(),
                     pin_bindings: vec!["t".into(), "t".into(), "x".into(), ],
                 },
             ]
@@ -189,15 +202,15 @@ mod test {
             ],
             body: vec![
                 Instruction {
-                    scheme_name: "nand".into(),
+                    schematic_name: "nand".into(),
                     pin_bindings: vec!["a".into(), "a".into(), "t0".into()],
                 },
                 Instruction {
-                    scheme_name: "nand".into(),
+                    schematic_name: "nand".into(),
                     pin_bindings: vec!["b".into(), "b".into(), "t1".into()],
                 },
                 Instruction {
-                    scheme_name: "nand".into(),
+                    schematic_name: "nand".into(),
                     pin_bindings: vec!["t0".into(), "t1".into(), "x".into()],
                 },
             ]
@@ -210,7 +223,7 @@ mod test {
             ],
             body: vec![
                 Instruction {
-                    scheme_name: "nand".into(),
+                    schematic_name: "nand".into(),
                     pin_bindings: vec!["a".into(), "a".into(), "x".into()],
                 }
             ]
@@ -228,23 +241,23 @@ mod test {
             ],
             body: vec![
                 Instruction {
-                    scheme_name: "not".into(),
+                    schematic_name: "not".into(),
                     pin_bindings: vec!["a".into(), "e0".into()],
                 },
                 Instruction {
-                    scheme_name: "and".into(),
+                    schematic_name: "and".into(),
                     pin_bindings: vec!["e0".into(), "b".into(), "e1".into()],
                 },
                 Instruction {
-                    scheme_name: "not".into(),
+                    schematic_name: "not".into(),
                     pin_bindings: vec!["b".into(), "e2".into()],
                 },
                 Instruction {
-                    scheme_name: "and".into(),
+                    schematic_name: "and".into(),
                     pin_bindings: vec!["a".into(), "e2".into(), "e3".into()],
                 },
                 Instruction {
-                    scheme_name: "or".into(),
+                    schematic_name: "or".into(),
                     pin_bindings: vec!["e2".into(), "e3".into(), "x".into()],
                 },
             ]

@@ -8,6 +8,7 @@ enum Token {
     Define,
     End,
     Arrow,
+    NewLine,
     Ident(String),
     Eof,
     Unknown(char),
@@ -29,6 +30,10 @@ impl<'a> Scanner<'a> {
             Some(c) if c.is_alphabetic() => {
                 Some(self.keyword_or_identifier())
             },
+            Some('0') | Some('1') => {
+                let v = self.input.next().unwrap();
+                Some(Token::Ident(v.to_string()))
+            }
             Some('-') => {
                 self.input.next();
                 if self.input.peek().copied() == Some('>') {
@@ -38,18 +43,18 @@ impl<'a> Scanner<'a> {
                     Some(Token::Unknown('?'))
                 }
             },
-            Some('0') | Some('1') => {
-                let v = self.input.next().unwrap();
-                Some(Token::Ident(v.to_string()))
-            }
+            Some('\n') => {
+                self.input.next();
+                Some(Token::NewLine)
+            },
             Some(c) => Some(Token::Unknown(*c)),
-            _ => Some(Token::Eof)
+            None => Some(Token::Eof)
         }
     }
 
     fn skip_whitespaces(&mut self) {
         while let Some(c) = self.input.peek() {
-            if !c.is_whitespace() { break }
+            if c != &' ' && c != &'\t' { break }
             self.input.next();
         }
     }
@@ -62,7 +67,7 @@ impl<'a> Scanner<'a> {
         }
 
         match lexeme.as_str() {
-            "module" => Token::Define,
+            "define" => Token::Define,
             "end" => Token::End,
             _ => Token::Ident(lexeme)
         }
@@ -73,7 +78,7 @@ impl<'a> Iterator for Scanner<'a> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
-        todo!()
+        self.next_token()
     }
 }
 
@@ -83,51 +88,125 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new() {}
+    pub fn new(input: Chars<'a>) -> Self {
+        Self { scanner: Scanner::new(input).peekable() }
+    }
 
-    pub fn parse(&self) -> Result<Design,String> {
-        todo!()
+    pub fn parse(&mut self) -> Result<Design,String> {
+        self.parse_newlines();
+
+        let mut schematics = Vec::new();
+        while let Some(Token::Define) = self.scanner.peek() {
+            schematics.push(self.parse_schematics()?);
+        }
+
+        Ok(Design::new(schematics))
     }
 
     fn parse_schematics(&mut self) -> Result<Schematic,String> {
-        todo!()
+        self.expect(Token::Define)?;
+        let name = self.parse_identifier()?;
+        let inputs = self.parse_identifier_list()?;
+        self.expect(Token::Arrow)?;
+        let outputs = self.parse_identifier_list()?;
+        self.parse_newlines();
+        let body = self.parse_instruction_list()?;
+        self.expect(Token::End)?;
+        self.parse_newlines();
+
+        Ok(Schematic::new(name, inputs, outputs, body))
     }
 
     fn parse_identifier_list(&mut self) -> Result<Vec<String>,String> {
-        todo!()
+        let mut identifiers = Vec::new();
+        while let Some(Token::Ident(_)) = self.scanner.peek() {
+            identifiers.push(self.parse_identifier()?);
+        }
+        Ok(identifiers)
     }
 
     fn parse_identifier(&mut self) -> Result<String,String> {
-        todo!()
+        match self.scanner.next() {
+            Some(Token::Ident(value)) => Ok(value),
+            Some(token) => Err(format!("Expected Identifier, found {:?}", token)),
+            None => Err("Expected identifier, but found end of input".into()),
+        }
     }
 
     fn parse_instruction_list(&mut self) -> Result<Vec<Instruction>,String> {
-        todo!()
+        let mut instructions = Vec::new();
+        while let Some(Token::Ident(_)) = self.scanner.peek() {
+            instructions.push(self.parse_instruction()?);
+        }
+        Ok(instructions)
     }
 
     fn parse_instruction(&mut self) -> Result<Instruction,String> {
-        todo!()
+        let schematic_name = self.parse_identifier()?;
+        let inputs = self.parse_identifier_list()?;
+        self.expect(Token::Arrow)?;
+        let outputs = self.parse_identifier_list()?;
+        self.parse_newlines();
+
+        Ok(Instruction::new(schematic_name, inputs, outputs))
+    }
+
+    fn parse_newlines(&mut self) {
+        while let Some(Token::NewLine) =  self.scanner.peek() {
+            self.scanner.next();
+        }
     }
 
     fn expect(&mut self, expected: Token) -> Result<(),String> {
-        match self.scanner.peek() {
-            Some(t) if *t == expected => Ok(()),
-            Some(t) => Err("".to_string()),
-            None => Err("".to_string()),
+        match self.scanner.next() {
+            Some(token) if token == expected => Ok(()),
+            Some(token) => Err(format!("Expected {:?}, got {:?}", expected, token)),
+            None => Err(format!("Expected {:?}, but found end of input", expected)),
         }
     }
 }
 
 
 mod test {
-    use crate::parser::Scanner;
+    use crate::parser::{Parser, Scanner, Token};
+    use crate::scheme::Design;
 
     #[test]
     fn test_scanner() {
-        let example0 = "\n\nmodule xor a b -> x\nend\n";
+        let example0 = "\n\ndefine xor a b -> x\nend\n";
         let mut scanner = Scanner::new(example0.chars());
-        while let Some(tok) = scanner.next_token() {
-            println!("=> {:?}", tok)
+
+        let tokens = vec![
+            Token::NewLine,
+            Token::NewLine,
+            Token::Define,
+            Token::Ident("xor".to_string()),
+            Token::Ident("a".to_string()),
+            Token::Ident("b".to_string()),
+            Token::Arrow,
+            Token::Ident("x".to_string()),
+            Token::NewLine,
+            Token::End,
+            Token::NewLine
+        ];
+
+        for token in tokens {
+            let st = scanner.next_token().unwrap();
+            assert_eq!(token, st);
+        }
+    }
+
+    #[test]
+    fn test_parser() {
+        let example1 = "\n\ndefine xor a b -> x\n\
+                                nand a a -> t0\n\
+                                nand b b -> t1\n\
+                                nand t0 t1 -> x\n\
+                               end\n";
+        let mut parser = Parser::new(example1.chars());
+        match parser.parse() {
+            Ok(design) => { println!("=> {:#?}", design) }
+            Err(e) =>  { println!("=> {:?}", e) }
         }
     }
 }
