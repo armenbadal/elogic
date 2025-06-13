@@ -62,7 +62,7 @@ impl<'a> Scanner<'a> {
     fn keyword_or_identifier(&mut self) -> Token {
         let mut lexeme = String::new();
         while let Some(c) = self.input.peek() {
-            if !c.is_alphabetic() { break }
+            if !c.is_alphanumeric() { break }
             lexeme.push(self.input.next().unwrap());
         }
 

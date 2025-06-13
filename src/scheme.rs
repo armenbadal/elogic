@@ -32,7 +32,10 @@ impl Display for Instruction {
 
 impl Instruction {
     pub fn new(schematic_name: String, inputs: Vec<String>, outputs: Vec<String>) -> Self {
-        Instruction { schematic_name: schematic_name, pin_bindings: vec![] }
+        let mut pin_bindings = Vec::<String>::new();
+        for p in inputs { pin_bindings.push(p.clone()) }
+        for p in outputs { pin_bindings.push(p.clone()) }
+        Instruction { schematic_name, pin_bindings }
     }
 
     fn expand(&self, library: &Vec<Schematic>, ng: &mut NameGenerator) -> Vec<Instruction> {
@@ -121,7 +124,11 @@ impl Display for Schematic {
 
 impl Schematic {
     pub fn new(name: String, inputs: Vec<String>, outputs: Vec<String>, body: Vec<Instruction>) -> Self {
-        Self { name: name, pins: vec![], body: body }
+        let mut pins = Vec::<Pin>::new();
+        for p in inputs { pins.push(Pin{name: p, role: Role::Input}); }
+        for p in outputs { pins.push(Pin{name: p, role: Role::Output}); }
+        // TODO Iterate over instructions and collect local names.
+        Self { name, pins, body }
     }
     pub fn flatten(&self, library: &Vec<Schematic>) -> Self {
         let mut ng = NameGenerator::new("_t".to_string());
