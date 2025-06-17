@@ -1,5 +1,8 @@
+use std::collections::VecDeque;
+use std::fs::File;
+use std::path::Path;
+use std::{io::BufRead, io::BufReader};
 use std::iter::Peekable;
-use std::str::Chars;
 
 use crate::scheme::{Design, Instruction, Schematic};
 
@@ -7,74 +10,68 @@ use crate::scheme::{Design, Instruction, Schematic};
 enum Token {
     Define,
     End,
+    True,
+    False,
+    Zero,
+    One,
     Arrow,
-    NewLine,
     Ident(String),
-    Eof,
-    Unknown(char),
+    NewLine,
 }
 
-struct Scanner<'a> {
-    input: Peekable<Chars<'a>>
+impl Token {
+    fn from(lexeme: &str) -> Self {
+        use Token::*;
+
+        match lexeme {
+            "define" => Define,
+            "end" => End,
+            "true" => True,
+            "false" => False,
+            "0" => Zero,
+            "1" => One,
+            "->" => Arrow,
+            _ => Ident(lexeme.into())
+        }
+    }
 }
 
-impl<'a> Scanner<'a> {
-    fn new(input: Chars<'a>) -> Self {
-        Scanner { input: input.peekable() }
+struct Scanner {
+    reader: BufReader<File>,
+    tokens: VecDeque<Token>,
+}
+
+impl Scanner {
+    fn new<P: AsRef<Path>>(path: P) -> Self {
+        let file = File::open(path).unwrap();
+        Self {
+            reader: BufReader::new(file),
+            tokens: VecDeque::new()
+        }
     }
 
     fn next_token(&mut self) -> Option<Token> {
-        self.skip_whitespaces();
-
-        match self.input.peek() {
-            Some(c) if c.is_alphabetic() => {
-                Some(self.keyword_or_identifier())
-            },
-            Some('0') | Some('1') => {
-                let v = self.input.next().unwrap();
-                Some(Token::Ident(v.to_string()))
-            }
-            Some('-') => {
-                self.input.next();
-                if self.input.peek().copied() == Some('>') {
-                    self.input.next();
-                    Some(Token::Arrow)
-                } else {
-                    Some(Token::Unknown('?'))
-                }
-            },
-            Some('\n') => {
-                self.input.next();
-                Some(Token::NewLine)
-            },
-            Some(c) => Some(Token::Unknown(*c)),
-            None => Some(Token::Eof)
+        if self.tokens.is_empty() {
+            self.scan_next_line();
         }
+
+        self.tokens.pop_front()
     }
 
-    fn skip_whitespaces(&mut self) {
-        while let Some(c) = self.input.peek() {
-            if c != &' ' && c != &'\t' { break }
-            self.input.next();
-        }
-    }
-
-    fn keyword_or_identifier(&mut self) -> Token {
-        let mut lexeme = String::new();
-        while let Some(c) = self.input.peek() {
-            if !c.is_alphanumeric() { break }
-            lexeme.push(self.input.next().unwrap());
-        }
-
-        match lexeme.as_str() {
-            "define" => Token::Define,
-            "end" => Token::End,
-            _ => Token::Ident(lexeme)
+    fn scan_next_line(&mut self) {
+        let mut line = String::new();
+        if 0 != self.reader.read_line(&mut line).unwrap() {
+            let cleaned = match line.trim().find("--") {
+                Some(place) => line[..place].trim_end().to_string(),
+                None => line
+            };
+            self.tokens.extend(cleaned.split_whitespace().map(|e| Token::from(e)));
+            self.tokens.push_back(Token::NewLine);
         }
     }
 }
 
-impl<'a> Iterator for Scanner<'a> {
+impl Iterator for Scanner {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -83,13 +80,13 @@ impl<'a> Iterator for Scanner<'a> {
 }
 
 
-pub struct Parser<'a> {
-    scanner: Peekable<Scanner<'a>>
+pub struct Parser {
+    scanner: Peekable<Scanner>
 }
 
-impl<'a> Parser<'a> {
-    pub fn new(input: Chars<'a>) -> Self {
-        Self { scanner: Scanner::new(input).peekable() }
+impl Parser {
+    pub fn new<P: AsRef<Path>>(path: P) -> Self {
+        Self { scanner: Scanner::new(path).peekable() }
     }
 
     pub fn parse(&mut self) -> Result<Design,String> {
@@ -167,46 +164,17 @@ impl<'a> Parser<'a> {
 }
 
 
-mod test {
-    use crate::parser::{Parser, Scanner, Token};
-    use crate::scheme::Design;
+#[cfg(test)]
+mod tests {
+    use crate::parser::Parser;
 
     #[test]
-    fn test_scanner() {
-        let example0 = "\n\ndefine xor a b -> x\nend\n";
-        let mut scanner = Scanner::new(example0.chars());
-
-        let tokens = vec![
-            Token::NewLine,
-            Token::NewLine,
-            Token::Define,
-            Token::Ident("xor".to_string()),
-            Token::Ident("a".to_string()),
-            Token::Ident("b".to_string()),
-            Token::Arrow,
-            Token::Ident("x".to_string()),
-            Token::NewLine,
-            Token::End,
-            Token::NewLine
-        ];
-
-        for token in tokens {
-            let st = scanner.next_token().unwrap();
-            assert_eq!(token, st);
-        }
-    }
-
-    #[test]
-    fn test_parser() {
-        let example1 = "\n\ndefine xor a b -> x\n\
-                                nand a a -> t0\n\
-                                nand b b -> t1\n\
-                                nand t0 t1 -> x\n\
-                               end\n";
-        let mut parser = Parser::new(example1.chars());
+    fn test_parse_design() {
+        let src = "schematics/example01.elogic";
+        let mut parser = Parser::new(src);
         match parser.parse() {
-            Ok(design) => { println!("=> {:#?}", design) }
-            Err(e) =>  { println!("=> {:?}", e) }
+            Ok(design) => println!("=> {:#?}", design),
+            Err(message) => eprintln!("ERROR: {}", message),
         }
     }
 }

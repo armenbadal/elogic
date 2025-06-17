@@ -1,0 +1,28 @@
+
+-- NOT A = A NAND A
+define not a -> x
+    nand a a -> x
+end
+
+-- A AND B = (A NAND B) NAND (A NAND B)
+define and a b -> x
+    nand a b -> t0
+    nand t0 t0 -> x
+end
+
+-- A OR B = (A NAND A) NAND (B NAND B)
+define or a b -> x
+    nand a a -> t0
+    nand b b -> t1
+    nand t0 t1 -> x
+end
+
+-- A XOR B = (A NAND (A NAND B)) NAND (B NAND (A NAND B))
+define xor a b -> x
+    nand a b -> t0
+    nand a t0 -> t1
+    nand b t0 -> t2
+    nand t1 t2 -> x
+end
+
+

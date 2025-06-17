@@ -164,7 +164,9 @@ impl Design {
     }
 }
 
-mod test {
+
+#[cfg(test)]
+mod tests {
     use crate::scheme::{Instruction, Pin, Role, Schematic};
 
     #[test]
