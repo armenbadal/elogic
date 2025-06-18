@@ -20,3 +20,8 @@ SignalList = Signal { Signal }.
 Signal = IDENT | '0' | '1' | 'true' | 'false'.
 ```
 
+## Հրամանային տողը
+
+```bash
+$ elogic simulate <file> <schematic> <data>
+```

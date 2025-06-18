@@ -4,7 +4,7 @@ use std::path::Path;
 use std::{io::BufRead, io::BufReader};
 use std::iter::Peekable;
 
-use crate::scheme::{Design, Instruction, Schematic};
+use crate::schematic::{Design, Instruction, Schematic};
 
 #[derive(Debug, PartialEq)]
 enum Token {
@@ -90,17 +90,21 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> Result<Design,String> {
+        self.parse_design()
+    }
+
+    fn parse_design(&mut self) -> Result<Design,String> {
         self.parse_newlines();
 
         let mut schematics = Vec::new();
         while let Some(Token::Define) = self.scanner.peek() {
-            schematics.push(self.parse_schematics()?);
+            schematics.push(self.parse_schematic()?);
         }
 
         Ok(Design::new(schematics))
     }
 
-    fn parse_schematics(&mut self) -> Result<Schematic,String> {
+    fn parse_schematic(&mut self) -> Result<Schematic,String> {
         self.expect(Token::Define)?;
         let name = self.parse_identifier()?;
         let inputs = self.parse_identifier_list()?;

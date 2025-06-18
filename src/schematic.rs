@@ -14,6 +14,12 @@ pub enum Role {
     Local,
 }
 
+impl Pin {
+    pub fn new(name: String, role: Role) -> Self {
+        Self { name, role }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Instruction {
     schematic_name: String,
@@ -125,11 +131,16 @@ impl Display for Schematic {
 impl Schematic {
     pub fn new(name: String, inputs: Vec<String>, outputs: Vec<String>, body: Vec<Instruction>) -> Self {
         let mut pins = Vec::<Pin>::new();
-        for p in inputs { pins.push(Pin{name: p, role: Role::Input}); }
-        for p in outputs { pins.push(Pin{name: p, role: Role::Output}); }
+        for p in inputs {
+            pins.push(Pin{name: p, role: Role::Input});
+        }
+        for p in outputs {
+            pins.push(Pin{name: p, role: Role::Output});
+        }
         // TODO Iterate over instructions and collect local names.
         Self { name, pins, body }
     }
+
     pub fn flatten(&self, library: &Vec<Schematic>) -> Self {
         let mut ng = NameGenerator::new("_t".to_string());
         self.flatten_internal(library, &mut ng)
