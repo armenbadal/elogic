@@ -173,12 +173,24 @@ impl Design {
     pub fn new(schematics: Vec<Schematic>) -> Self {
         Self { schematics}
     }
+
+    pub fn find(&self, name: &String) -> Option<&Schematic> {
+        for sc in &self.schematics {
+            if sc.name == *name {
+                return Some(sc)
+            }
+        }
+
+        None
+    }
+
+    pub fn get_schematics(&self) -> &Vec<Schematic> { &self.schematics }
 }
 
 
 #[cfg(test)]
 mod tests {
-    use crate::scheme::{Instruction, Pin, Role, Schematic};
+    use crate::schematic::{Instruction, Pin, Role, Schematic};
 
     #[test]
     fn test_simple_scheme() {
