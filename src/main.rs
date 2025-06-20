@@ -7,7 +7,8 @@ mod parser;
 mod simulator;
 
 enum Action {
-    Simulate
+    Simulate,
+    Flatten
 }
 
 struct Command {
@@ -18,34 +19,49 @@ struct Command {
 }
 
 impl Command {
-    fn new(command_line: &Vec<String>) -> Result<Self, String> {
+    pub fn new(command_line: &Vec<String>) -> Result<Self, String> {
         if command_line.len() == 7 && command_line[1] == "simulate" {
-            //    0      1       2     3      4     5       6
-            // elogic simulate <name> from <fille> with <data-file>
-            if command_line[3] == "from" && command_line[5] == "with" {
-                let command = Command{
-                    action: Action::Simulate,
-                    schematic: command_line[2].clone(),
-                    file: command_line[4].clone(),
-                    data: command_line[6].clone(),
-                };
-                Ok(command)
-            } else {
-                Err("Invalid command line for simulation.".into())
-            }
+            Command::simulation_command(&command_line[2..6])
         } else if command_line.len() == 5 && command_line[1] == "flatten" {
-            //    0      1      2     3     4
-            // elogic flatten <name> from <fille>
-            if command_line[3] == "from" {
-                //
-            }
-            Err("Invalid command line for flattening.".into())
+            Command::flattening_command(&command_line[2..4])
         } else {
             Err("Invalid command line.".into())
         }
     }
 
-    fn run(&self) {
+    //    0      1       2     3      4     5       6
+    // elogic simulate <name> from <fille> with <data-file>
+    fn simulation_command(arguments: &[String]) -> Result<Self, String> {
+        if arguments[1] == "from" && arguments[3] == "with" {
+            let command = Command{
+                action: Action::Simulate,
+                schematic: arguments[0].clone(),
+                file: arguments[2].clone(),
+                data: arguments[4].clone(),
+            };
+            Ok(command)
+        } else {
+            Err("Invalid command line for simulation.".into())
+        }
+    }
+
+    //    0      1      2     3     4
+    // elogic flatten <name> from <fille>
+    fn flattening_command(arguments: &[String]) -> Result<Self, String> {
+        if arguments[1] == "from" {
+            let command = Command {
+                action: Action::Flatten,
+                schematic: arguments[0].clone(),
+                file: arguments[2].clone(),
+                data: String::new(),
+            };
+            Ok(command)
+        } else {
+            Err("Invalid command line for flattening.".into())
+        }
+    }
+
+    pub fn run(&self) {
         let mut parser = Parser::new(&self.file);
         match parser.parse() {
             Ok(design) => {

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone)]
@@ -39,8 +39,8 @@ impl Display for Instruction {
 impl Instruction {
     pub fn new(schematic_name: String, inputs: Vec<String>, outputs: Vec<String>) -> Self {
         let mut pin_bindings = Vec::<String>::new();
-        for p in inputs { pin_bindings.push(p.clone()) }
-        for p in outputs { pin_bindings.push(p.clone()) }
+        pin_bindings.extend(inputs);
+        pin_bindings.extend(outputs);
         Instruction { schematic_name, pin_bindings }
     }
 
@@ -121,9 +121,18 @@ impl Display for Schematic {
             }
         }
         write!(f, "\n")?;
+        write!(f, "  -- Locals: ")?;
+        for pin in &self.pins {
+            if pin.role == Role::Local {
+                write!(f, " {}", pin.name.clone())?;
+            }
+        }
+        write!(f, "\n")?;
+
         for instr in &self.body {
             write!(f, "  {}\n", instr)?;
         }
+
         write!(f, "end\n")
     }
 }
@@ -137,7 +146,15 @@ impl Schematic {
         for p in outputs {
             pins.push(Pin{name: p, role: Role::Output});
         }
-        // TODO Iterate over instructions and collect local names.
+        
+        let mut locals = HashSet::<String>::new();
+        for instr in &body {
+            locals.extend(instr.pin_bindings.clone());
+        }
+        for p in locals {
+            pins.push(Pin{name: p, role: Role::Local});
+        }
+
         Self { name, pins, body }
     }
 
