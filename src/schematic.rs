@@ -141,10 +141,10 @@ impl Schematic {
     pub fn new(name: String, inputs: Vec<String>, outputs: Vec<String>, body: Vec<Instruction>) -> Self {
         let mut pins = Vec::<Pin>::new();
         for p in inputs {
-            pins.push(Pin{name: p, role: Role::Input});
+            pins.push(Pin::new(p, Role::Input));
         }
         for p in outputs {
-            pins.push(Pin{name: p, role: Role::Output});
+            pins.push(Pin::new(p, Role::Output));
         }
         
         let mut locals = HashSet::<String>::new();
@@ -152,7 +152,7 @@ impl Schematic {
             locals.extend(instr.pin_bindings.clone());
         }
         for p in locals {
-            pins.push(Pin{name: p, role: Role::Local});
+            pins.push(Pin::new(p, Role::Local));
         }
 
         Self { name, pins, body }
@@ -175,9 +175,10 @@ impl Schematic {
 
         Schematic {
             name: self.name.clone(),
-            pins: self.pins.clone(),
+            pins: self.pins.clone(), // clone only inputs and outputs
             body: wrapper.expand(library, ng)
         }
+        //Schematic::new()
     }
 }
 
