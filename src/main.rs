@@ -21,9 +21,9 @@ struct Command {
 impl Command {
     pub fn new(command_line: &Vec<String>) -> Result<Self, String> {
         if command_line.len() == 7 && command_line[1] == "simulate" {
-            Command::simulation_command(&command_line[2..6])
+            Command::simulation_command(&command_line[2..=6])
         } else if command_line.len() == 5 && command_line[1] == "flatten" {
-            Command::flattening_command(&command_line[2..4])
+            Command::flattening_command(&command_line[2..=4])
         } else {
             Err("Invalid command line.".into())
         }
@@ -65,6 +65,7 @@ impl Command {
         let mut parser = Parser::new(&self.file);
         match parser.parse() {
             Ok(design) => {
+                println!("===>\n{}", design);
                 let simulator = Simulator::new(design);
                 simulator.simulate(&self.schematic);
             }
@@ -78,7 +79,14 @@ impl Command {
 
 
 fn main() {
-    let cl = args().collect::<Vec<String>>();
+    //let cl = args().collect::<Vec<String>>();
+    let cl = vec![
+        "elogic".to_string(),
+        "flatten".to_string(),
+        "xor".to_string(),
+        "from".to_string(),
+        "schematics/example01.elogic".to_string(),
+    ];
     let command = Command::new(&cl);
     match command {
         Ok(com) => com.run(),

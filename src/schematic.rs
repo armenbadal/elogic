@@ -140,11 +140,11 @@ impl Display for Schematic {
 impl Schematic {
     pub fn new(name: String, inputs: Vec<String>, outputs: Vec<String>, body: Vec<Instruction>) -> Self {
         let mut pins = Vec::<Pin>::new();
-        for p in inputs {
-            pins.push(Pin::new(p, Role::Input));
+        for p in &inputs {
+            pins.push(Pin::new(p.clone(), Role::Input));
         }
-        for p in outputs {
-            pins.push(Pin::new(p, Role::Output));
+        for p in &outputs {
+            pins.push(Pin::new(p.clone(), Role::Output));
         }
         
         let mut locals = HashSet::<String>::new();
@@ -152,7 +152,9 @@ impl Schematic {
             locals.extend(instr.pin_bindings.clone());
         }
         for p in locals {
-            pins.push(Pin::new(p, Role::Local));
+            if !inputs.contains(&p) && !outputs.contains(&p) {
+                pins.push(Pin::new(p, Role::Local));
+            }
         }
 
         Self { name, pins, body }
@@ -202,7 +204,18 @@ impl Design {
         None
     }
 
-    pub fn get_schematics(&self) -> &Vec<Schematic> { &self.schematics }
+    pub fn get_schematics(&self) -> &Vec<Schematic> {
+        &self.schematics
+    }
+}
+
+impl Display for Design {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for sc in &self.schematics {
+            write!(f, "{}\n", sc)?;
+        }
+        Ok(())
+    }
 }
 
 
@@ -315,6 +328,27 @@ mod tests {
         let schemas = vec![xor_scheme, nand_scheme, and_scheme, or_scheme, not_scheme];
 
         let flattened = schemas[0].flatten(&schemas);
+        println!("->\n{}", flattened)
+    }
+
+    #[test]
+    fn test_flatten_primitive_schematic() {
+        let not_scheme = Schematic {
+            name: "not".into(),
+            pins: vec![
+                Pin { name: "a".into(), role: Role::Input },
+                Pin { name: "x".into(), role: Role::Output },
+            ],
+            body: vec![
+                Instruction {
+                    schematic_name: "nand".into(),
+                    pin_bindings: vec!["a".into(), "a".into(), "x".into()],
+                }
+            ]
+        };
+
+        let library = vec![not_scheme];
+        let flattened = &library[0].flatten(&library);
         println!("->\n{}", flattened)
     }
 }

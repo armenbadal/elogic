@@ -33,6 +33,6 @@ impl Simulator {
     pub fn simulate(&self, schematic_name: &String) {
         let top_schematic = self.design.find(schematic_name);
         let flattened = top_schematic.unwrap().flatten(self.design.get_schematics());
-        println!("=>\n{:?}", flattened);
+        println!("=>\n{}", flattened);
     }
 }
