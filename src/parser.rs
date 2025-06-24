@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{VecDeque};
 use std::fs::File;
 use std::path::Path;
 use std::{io::BufRead, io::BufReader};
@@ -115,7 +115,7 @@ impl Parser {
         self.expect(Token::End)?;
         self.parse_newlines();
 
-        Ok(Schematic::new(name, inputs, outputs, body))
+        Ok(Schematic::new(name, (inputs, outputs), body))
     }
 
     fn parse_identifier_list(&mut self) -> Result<Vec<String>,String> {

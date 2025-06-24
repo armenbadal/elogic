@@ -18,6 +18,18 @@ impl Pin {
     pub fn new(name: String, role: Role) -> Self {
         Self { name, role }
     }
+
+    pub fn new_input(name: String) -> Self {
+        Pin::new(name, Role::Input)
+    }
+
+    pub fn new_output(name: String) -> Self {
+        Pin::new(name, Role::Input)
+    }
+
+    pub fn new_local(name: String) -> Self {
+        Pin::new(name, Role::Input)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -138,26 +150,24 @@ impl Display for Schematic {
 }
 
 impl Schematic {
-    pub fn new(name: String, inputs: Vec<String>, outputs: Vec<String>, body: Vec<Instruction>) -> Self {
-        let mut pins = Vec::<Pin>::new();
-        for p in &inputs {
-            pins.push(Pin::new(p.clone(), Role::Input));
-        }
-        for p in &outputs {
-            pins.push(Pin::new(p.clone(), Role::Output));
-        }
-        
-        let mut locals = HashSet::<String>::new();
-        for instr in &body {
-            locals.extend(instr.pin_bindings.clone());
-        }
-        for p in locals {
-            if !inputs.contains(&p) && !outputs.contains(&p) {
-                pins.push(Pin::new(p, Role::Local));
-            }
-        }
+    pub fn new(name: String, io_pins: (Vec<String>, Vec<String>), body: Vec<Instruction>) -> Self {
+        let all_local_names: HashSet<String> = body.iter()
+                .flat_map(|i| i.pin_bindings.iter().map(|n| n.clone()))
+                .collect();
+        // միայն IO-ները
+        let inputs_and_outputs: HashSet<String> = io_pins.0.iter()
+                .chain(io_pins.1.iter())
+                .map(|n| n.clone())
+                .collect();
+        // լոկալներն առանց IO-ների
+        let locals = all_local_names.difference(&inputs_and_outputs)
+                                              .map(|n| Pin::new_local(n.to_string()));
 
-        Self { name, pins, body }
+        let mut pins: Vec<Pin> = io_pins.0.into_iter().map(Pin::new_input).collect();
+        pins.extend(io_pins.1.into_iter().map(Pin::new_output));
+        pins.extend(locals);
+
+        Self {name, pins, body}
     }
 
     pub fn flatten(&self, library: &Vec<Schematic>) -> Self {
