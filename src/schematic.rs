@@ -24,11 +24,11 @@ impl Pin {
     }
 
     pub fn new_output(name: String) -> Self {
-        Pin::new(name, Role::Input)
+        Pin::new(name, Role::Output)
     }
 
     pub fn new_local(name: String) -> Self {
-        Pin::new(name, Role::Input)
+        Pin::new(name, Role::Local)
     }
 }
 
@@ -120,32 +120,24 @@ pub struct Schematic {
 
 impl Display for Schematic {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let format_pins = |f: &mut Formatter<'_>, ps: &Vec<Pin>, r: Role|
+                ps.iter()
+                  .filter(|pin| pin.role == r)
+                  .map(|pin| write!(f, " {}", pin.name))
+                  .collect::<std::fmt::Result>();
+
         write!(f, "scheme {}", self.name)?;
-        for pin in &self.pins {
-            if pin.role == Role::Input {
-                write!(f, " {}", pin.name.clone())?;
-            }
-        }
+        format_pins(f, &self.pins, Role::Input)?;
         write!(f, " ->")?;
-        for pin in &self.pins {
-            if pin.role == Role::Output {
-                write!(f, " {}", pin.name.clone())?;
-            }
-        }
+        format_pins(f, &self.pins, Role::Output)?;
         write!(f, "\n")?;
-        write!(f, "  -- Locals: ")?;
-        for pin in &self.pins {
-            if pin.role == Role::Local {
-                write!(f, " {}", pin.name.clone())?;
-            }
-        }
+        write!(f, "  -- Locals:")?;
+        format_pins(f, &self.pins, Role::Local)?;
         write!(f, "\n")?;
 
-        for instr in &self.body {
-            write!(f, "  {}\n", instr)?;
-        }
+        self.body.iter().for_each(|p| { let _ = p.fmt(f); } );
 
-        write!(f, "end\n")
+        write!(f, "end\n\n")
     }
 }
 
@@ -221,9 +213,7 @@ impl Design {
 
 impl Display for Design {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        for sc in &self.schematics {
-            write!(f, "{}\n", sc)?;
-        }
+        self.schematics.iter().for_each(|sc| { let _ = sc.fmt(f); });
         Ok(())
     }
 }
@@ -343,19 +333,15 @@ mod tests {
 
     #[test]
     fn test_flatten_primitive_schematic() {
-        let not_scheme = Schematic {
-            name: "not".into(),
-            pins: vec![
-                Pin { name: "a".into(), role: Role::Input },
-                Pin { name: "x".into(), role: Role::Output },
-            ],
-            body: vec![
+        let not_scheme = Schematic::new(
+            String::from("not"),
+            (vec!["a".to_string()], vec!["x".to_string()]),
+            vec![
                 Instruction {
                     schematic_name: "nand".into(),
                     pin_bindings: vec!["a".into(), "a".into(), "x".into()],
                 }
-            ]
-        };
+            ]);
 
         let library = vec![not_scheme];
         let flattened = &library[0].flatten(&library);
