@@ -1,4 +1,4 @@
-use std::collections::{VecDeque};
+use std::collections::VecDeque;
 use std::fs::File;
 use std::path::Path;
 use std::{io::BufRead, io::BufReader};
@@ -39,6 +39,7 @@ impl Token {
 struct Scanner {
     reader: BufReader<File>,
     tokens: VecDeque<Token>,
+    current_line: usize,
 }
 
 impl Scanner {
@@ -46,7 +47,8 @@ impl Scanner {
         let file = File::open(path).unwrap();
         Self {
             reader: BufReader::new(file),
-            tokens: VecDeque::new()
+            tokens: VecDeque::new(),
+            current_line: 0,
         }
     }
 
@@ -61,13 +63,24 @@ impl Scanner {
     fn scan_next_line(&mut self) {
         let mut line = String::new();
         if 0 != self.reader.read_line(&mut line).unwrap() {
+            self.current_line += 1;
+
             let cleaned = match line.trim().find("--") {
                 Some(place) => line[..place].trim_end().to_string(),
                 None => line
             };
-            self.tokens.extend(cleaned.split_whitespace().map(|e| Token::from(e)));
+
+            for lexeme in cleaned.split_whitespace() {
+                let token = Token::from(lexeme);
+                self.tokens.push_back(token);
+            }
+
             self.tokens.push_back(Token::NewLine);
         }
+    }
+
+    fn line(&mut self) -> usize {
+        self.current_line
     }
 }
 
@@ -84,16 +97,21 @@ pub struct Parser {
     scanner: Peekable<Scanner>
 }
 
+pub struct ParseError {
+    message: String,
+    line: usize,
+}
+
 impl Parser {
     pub fn new<P: AsRef<Path>>(path: P) -> Self {
         Self { scanner: Scanner::new(path).peekable() }
     }
 
-    pub fn parse(&mut self) -> Result<Design,String> {
+    pub fn parse(&mut self) -> Result<Design,ParseError> {
         self.parse_design()
     }
 
-    fn parse_design(&mut self) -> Result<Design,String> {
+    fn parse_design(&mut self) -> Result<Design,ParseError> {
         self.parse_newlines();
 
         let mut schematics = Vec::new();
@@ -104,7 +122,7 @@ impl Parser {
         Ok(Design::new(schematics))
     }
 
-    fn parse_schematic(&mut self) -> Result<Schematic,String> {
+    fn parse_schematic(&mut self) -> Result<Schematic,ParseError> {
         self.expect(Token::Define)?;
         let name = self.parse_identifier()?;
         let inputs = self.parse_identifier_list()?;
@@ -118,7 +136,7 @@ impl Parser {
         Ok(Schematic::new(name, (inputs, outputs), body))
     }
 
-    fn parse_identifier_list(&mut self) -> Result<Vec<String>,String> {
+    fn parse_identifier_list(&mut self) -> Result<Vec<String>,ParseError> {
         let mut identifiers = Vec::new();
         while let Some(Token::Ident(_)) = self.scanner.peek() {
             identifiers.push(self.parse_identifier()?);
@@ -126,15 +144,15 @@ impl Parser {
         Ok(identifiers)
     }
 
-    fn parse_identifier(&mut self) -> Result<String,String> {
+    fn parse_identifier(&mut self) -> Result<String,ParseError> {
         match self.scanner.next() {
             Some(Token::Ident(value)) => Ok(value),
-            Some(token) => Err(format!("Expected Identifier, found {:?}", token)),
-            None => Err("Expected identifier, but found end of input".into()),
+            Some(token) => Err(ParseError{message: format!("Expected Identifier, found {:?}", token), line: 0}),
+            None => Err(ParseError{message: "Expected identifier, but found end of input".into(), line: 0}),
         }
     }
 
-    fn parse_instruction_list(&mut self) -> Result<Vec<Instruction>,String> {
+    fn parse_instruction_list(&mut self) -> Result<Vec<Instruction>,ParseError> {
         let mut instructions = Vec::new();
         while let Some(Token::Ident(_)) = self.scanner.peek() {
             instructions.push(self.parse_instruction()?);
@@ -142,7 +160,7 @@ impl Parser {
         Ok(instructions)
     }
 
-    fn parse_instruction(&mut self) -> Result<Instruction,String> {
+    fn parse_instruction(&mut self) -> Result<Instruction,ParseError> {
         let schematic_name = self.parse_identifier()?;
         let inputs = self.parse_identifier_list()?;
         self.expect(Token::Arrow)?;
@@ -158,11 +176,11 @@ impl Parser {
         }
     }
 
-    fn expect(&mut self, expected: Token) -> Result<(),String> {
+    fn expect(&mut self, expected: Token) -> Result<(),ParseError> {
         match self.scanner.next() {
             Some(token) if token == expected => Ok(()),
-            Some(token) => Err(format!("Expected {:?}, got {:?}", expected, token)),
-            None => Err(format!("Expected {:?}, but found end of input", expected)),
+            Some(token) => Err(ParseError{message: format!("Expected {:?}, got {:?}", expected, token), line: 0}),
+            None => Err(ParseError{message: format!("Expected {:?}, but found end of input", expected), line: self.scanner.line()}),
         }
     }
 }
@@ -178,7 +196,7 @@ mod tests {
         let mut parser = Parser::new(src);
         match parser.parse() {
             Ok(design) => println!("=> {:#?}", design),
-            Err(message) => eprintln!("ERROR: {}", message),
+            Err(err) => eprintln!("ERROR [{}]: {}", err.line, err.message),
         }
     }
 }

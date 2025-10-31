@@ -11,8 +11,8 @@
 ## Լեզվի քերականությունը
 
 ```
-Design = { Scheme NewLines }.
-Scheme = 'scheme' IDENT IdentList '->' IdentList NewLines
+Design = { Schematic NewLines }.
+Schematic = 'define' IDENT IdentList '->' IdentList NewLines
            { Instruction NewLines } 'end'.
 IdentList = IDENT { IDENT }.
 Instruction = IDENT SignalList -> IdentList.
